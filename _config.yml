@@ -1,20 +1,20 @@
 # Site settings
-title: Lin Tao
-SEOTitle: 林涛的博客
+title: Deer Blog
+SEOTitle: 陆鹿鹿的博客
 header-img: img/home-bg.jpg
 email: hellolintao@126.com
-description: "林涛的博客"
-keyword: "前端"
-url: "http://hellolintao.top/"              # your host, for absolute URL
+description: "陆鹿鹿的博客"
+keyword: "后台"
+url: "http://deerblog.top/"              # your host, for absolute URL
 baseurl: ""         # for example, '/blog' if your blog hosted on 'host/blog'
 
 
 
 # SNS settings
 RSS: false
-# weibo_username:     火箭少女101_Taotao
-zhihu_username:     lintao-52
-github_username:    hellolintao
+# weibo_username:     
+zhihu_username:     
+github_username:    Deer1120
 #twitter_username:  huxpro
 #facebook_username:  huxpro
 
@@ -50,9 +50,9 @@ kramdown:
 #disqus_username: _your_disqus_short_name_
 
 # Duoshuo settings
-duoshuo_username: lintao
+#duoshuo_username: lintao
 # Share component is depend on Comment so we can NOT use share only.
-duoshuo_share: true                     # set to false if you want to use Comment without Sharing
+#duoshuo_share: true                     # set to false if you want to use Comment without Sharing
 
 
 
@@ -62,14 +62,14 @@ duoshuo_share: true                     # set to false if you want to use Commen
 ba_track_id: baidu-Analytics
 # Google Analytics
 ga_track_id: 'google Analytics'            # Format: UA-xxxxxx-xx
-ga_domain: hellolintao.top
+ga_domain: deerblog.top
 
 
 
 # Sidebar settings
 sidebar: true                           # whether or not using Sidebar.
-sidebar-about-description: "前端工程师，万青积极分子。"
-sidebar-avatar: /img/avatar-lintao.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
+sidebar-about-description: "祈愿活得精彩"
+sidebar-avatar: /img/avatar-lqq.jpg      # use absolute URL, seeing it's used in both `/` and `/about/`
 
 
 
