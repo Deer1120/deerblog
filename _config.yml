@@ -81,6 +81,10 @@ featured-condition-size: 1              # A tag will be featured if the size of 
 
 # Friends
 friends: [
+	{
+	    title: '弟弟爱摇滚',
+	    href: 'http://hellolintao.top/'
+	}
 ]
 
 
