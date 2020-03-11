@@ -1,0 +1,232 @@
+I"�<p>最近沉迷于b站，发现了很多优秀的学习资源。好记性不如烂笔头，我要让博客记录学习轨迹。</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#题目要求">题目要求</a></li>
+  <li><a href="#题目解法">题目解法</a>
+    <ol>
+      <li><a href="#解法1">解法1</a></li>
+      <li><a href="#解法2">解法2</a></li>
+      <li><a href="#解法3">解法3</a></li>
+      <li><a href="#解法4">解法4</a></li>
+    </ol>
+  </li>
+  <li><a href="#CountDownLatch">CountDownLatch</a></li>
+</ol>
+
+<hr />
+
+<h2 id="题目要求">题目要求</h2>
+
+<p>实现一个容器，提供两个方法，add(增加元素)，size(获取容器元素个数)。
+写出两个线程，线程1添加10个元素到容器中，线程2实现控制监控元素个数的功能，当个数到5个时，线程2给出提示并结束。</p>
+
+<hr />
+
+<h2 id="题目解法">题目解法</h2>
+<p>接下来来解决问题，四种解法，逐渐递进。</p>
+<h3 id="解法1">解法1</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Container1 {
+    List&lt;Object&gt; list=new ArrayList&lt;Object&gt;();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container1 c1 = new Container1();
+        new Thread(()-&gt;{
+            for (int i=0;i&lt;10;i++){
+                c1.add(new Object());
+                System.out.println("add"+i);
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+
+        new Thread(()-&gt;{
+            while(true){
+                if(c1.size()==5){
+                    break;
+                }
+            }
+            System.out.println("线程2结束");
+        },"t2").start();
+    }
+}
+//解法1失败的原因是线程t2读的是缓冲区的值，它可能不知道线程容器的数量达到5了。所以线程t2无法结束
+</code></pre></div></div>
+<h3 id="解法2">解法2</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Container2 {
+    volatile  List&lt;Object&gt; list=new ArrayList&lt;Object&gt;();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container2 c2=new Container2();
+        new Thread(()-&gt;{
+            for (int i=0;i&lt;10;i++){
+                c2.add(new Object());
+                System.out.println("add"+i);
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+
+        new Thread(()-&gt;{
+            while(true){
+                if(c2.size()==5){
+                    break;
+                }
+            }
+            System.out.println("线程2结束");
+        },"t2").start();
+    }
+
+}
+//解法2可以解决问题，但是还存在两方面的问题，一方面是volatile虽然保证了内存可见性，但是会存在延迟；另一方面是while true浪费资源
+</code></pre></div></div>
+<h3 id="解法3">解法3</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Container3 {
+    volatile List&lt;Object&gt; list=new ArrayList&lt;Object&gt;();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+
+    public static void main(String[] args) {
+        Container3 c3=new Container3();
+        Object lock=new Object();
+
+
+        new Thread(()-&gt;{
+
+            synchronized (lock){
+                System.out.println("t2启动");
+                if(c3.size()!=5){
+                    try {
+                        lock.wait();//wait会释放锁
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+                System.out.println("t2结束");
+                lock.notify();
+            }
+        },"t2").start();
+
+
+        new Thread(()-&gt;{
+            synchronized (lock){
+                System.out.println("t1启动");
+                for (int i=0;i&lt;10;i++){
+                    c3.add(new Object());
+                    System.out.println("add"+i);
+                    if(c3.size()==5){
+                        lock.notify();//notify不会释放锁
+                        try{
+                            lock.wait();
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                    try{
+                        TimeUnit.SECONDS.sleep(1);
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+        },"t1").start();
+    }
+}
+//解法3可以完整无误的解决问题。美中不足，lock 在wait notify之间来回切换，操作频繁
+</code></pre></div></div>
+
+<h3 id="解法4">解法4</h3>
+<p>终极解决方案来咯～</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Container4 {
+    volatile List&lt;Object&gt; list=new ArrayList&lt;Object&gt;();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container4 c4=new Container4();
+
+        CountDownLatch latch=new CountDownLatch(1);
+
+        new Thread(()-&gt;{
+            System.out.println("t2启动");
+            if(c4.size()!=5){
+                try{
+                    latch.await();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t2").start();
+
+
+        new Thread(()-&gt;{
+            System.out.println("t1启动");
+            for (int i=0;i&lt;10;i++){
+                c4.add(new Object());
+                System.out.println("add"+i);
+                if(c4.size()==5){
+                    latch.countDown();
+                }
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+    }
+}
+//终极解法中用到来CountDownLatch。接下来对这个新朋友进行介绍
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="countdownlatch">CountDownLatch</h2>
+
+<ul>
+  <li>CountDownLatch是在java1.5被引入的，存在于java.util.concurrent包下。</li>
+  <li>该类有点类似于计数器，只不过同一时间内只能有一个线程去操作这个计数器例的值。</li>
+  <li>类方法
+```
+构造方法
+//count是计数器里的值
+public CountDownLatch(int count){…}</li>
+</ul>
+
+<p>//await()方法会使当前线程挂起，当计数器count的值为0才继续执行
+public void await(){…..}</p>
+
+<p>//将当前计数器的值count-1
+public void countDown(){…}
+```</p>
+
+:ET

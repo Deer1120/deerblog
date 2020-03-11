@@ -1,0 +1,240 @@
+---
+layout:     post
+title:      "CountDownLatch"
+subtitle:   ""
+date:       2020-03-11
+author:     "Deer"
+header-img: "img/star-universe-space-all-clouds-cumulus-clouds.jpg"
+tags:
+    - 多线程
+---
+
+
+最近沉迷于b站，发现了很多优秀的学习资源。好记性不如烂笔头，我要让博客记录学习轨迹。
+
+## Catagory
+
+1. [题目要求](#题目要求)
+2. [题目解法](#题目解法)
+	1. [解法1](#解法1)
+	2. [解法2](#解法2)
+	3. [解法3](#解法3)
+	4. [解法4](#解法4)
+3. [CountDownLatch](#CountDownLatch)
+
+---
+
+## 题目要求
+
+实现一个容器，提供两个方法，add(增加元素)，size(获取容器元素个数)。
+写出两个线程，线程1添加10个元素到容器中，线程2实现控制监控元素个数的功能，当个数到5个时，线程2给出提示并结束。
+
+
+---
+
+## 题目解法
+接下来来解决问题，四种解法，逐渐递进。
+### 解法1
+```
+public class Container1 {
+    List<Object> list=new ArrayList<Object>();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container1 c1 = new Container1();
+        new Thread(()->{
+            for (int i=0;i<10;i++){
+                c1.add(new Object());
+                System.out.println("add"+i);
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+
+        new Thread(()->{
+            while(true){
+                if(c1.size()==5){
+                    break;
+                }
+            }
+            System.out.println("线程2结束");
+        },"t2").start();
+    }
+}
+//解法1失败的原因是线程t2读的是缓冲区的值，它可能不知道线程容器的数量达到5了。所以线程t2无法结束
+```
+### 解法2
+```
+public class Container2 {
+    volatile  List<Object> list=new ArrayList<Object>();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container2 c2=new Container2();
+        new Thread(()->{
+            for (int i=0;i<10;i++){
+                c2.add(new Object());
+                System.out.println("add"+i);
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+
+        new Thread(()->{
+            while(true){
+                if(c2.size()==5){
+                    break;
+                }
+            }
+            System.out.println("线程2结束");
+        },"t2").start();
+    }
+
+}
+//解法2可以解决问题，但是还存在两方面的问题，一方面是volatile虽然保证了内存可见性，但是会存在延迟；另一方面是while true浪费资源
+```
+### 解法3
+```
+public class Container3 {
+    volatile List<Object> list=new ArrayList<Object>();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+
+    public static void main(String[] args) {
+        Container3 c3=new Container3();
+        Object lock=new Object();
+
+
+        new Thread(()->{
+
+            synchronized (lock){
+                System.out.println("t2启动");
+                if(c3.size()!=5){
+                    try {
+                        lock.wait();//wait会释放锁
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+                System.out.println("t2结束");
+                lock.notify();
+            }
+        },"t2").start();
+
+
+        new Thread(()->{
+            synchronized (lock){
+                System.out.println("t1启动");
+                for (int i=0;i<10;i++){
+                    c3.add(new Object());
+                    System.out.println("add"+i);
+                    if(c3.size()==5){
+                        lock.notify();//notify不会释放锁
+                        try{
+                            lock.wait();
+                        }catch (Exception e){
+                            e.printStackTrace();
+                        }
+                    }
+                    try{
+                        TimeUnit.SECONDS.sleep(1);
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+                }
+            }
+
+        },"t1").start();
+    }
+}
+//解法3可以完整无误的解决问题。美中不足，lock 在wait notify之间来回切换，操作频繁
+```
+
+### 解法4
+终极解决方案来咯～
+```
+public class Container4 {
+    volatile List<Object> list=new ArrayList<Object>();
+    public void add(Object o){
+        list.add(o);
+    }
+    public int size(){
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        Container4 c4=new Container4();
+
+        CountDownLatch latch=new CountDownLatch(1);
+
+        new Thread(()->{
+            System.out.println("t2启动");
+            if(c4.size()!=5){
+                try{
+                    latch.await();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t2").start();
+
+
+        new Thread(()->{
+            System.out.println("t1启动");
+            for (int i=0;i<10;i++){
+                c4.add(new Object());
+                System.out.println("add"+i);
+                if(c4.size()==5){
+                    latch.countDown();
+                }
+                try{
+                    TimeUnit.SECONDS.sleep(1);
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+        },"t1").start();
+    }
+}
+//终极解法中用到来CountDownLatch。接下来对这个新朋友进行介绍
+```
+
+
+---
+
+## CountDownLatch
+
+- CountDownLatch是在java1.5被引入的，存在于java.util.concurrent包下。
+- 该类是用来协调多个线程之间的同步，能够使一个线程在等待另外一些线程完成各自工作之后，再继续执行。
+使用一个计数器来实现，计数器的初始值时候线程的数量。当每一个线程完成自己的任务后，计数器的值会减1。当计数器的值为0时，表示所有的线程都
+完成一些任务，然后在CountDownLatch上等待的线程就可以恢复执行接下来的任务
+- public CountDownLatch(int count){...} //count是线程的数量
+- public void await(){.....} //await()方法会使当前线程挂起，当计数器count的值被其他线程减为0才继续执行
+- public void countDown(){...} //将当前计数器的值count-1
+- 在该题目中，因为线程t2要监控线程t1，即t2要等t1的执行，所以构造函数中count设置为1。启动线程t2，执行await()方法，使线程t2挂起；然后启动线程t1，当容器元素个数为5的时候，执行countDown()方法，使count的值-1，则此时count的值为0，线程t2可以执行了
+
+
+
+
+
