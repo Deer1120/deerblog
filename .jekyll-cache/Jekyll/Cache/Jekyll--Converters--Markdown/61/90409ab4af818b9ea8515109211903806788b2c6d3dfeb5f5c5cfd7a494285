@@ -1,4 +1,4 @@
-I"X<blockquote>
+I"L<blockquote>
   <p>This document is not completed and will be updated anytime.</p>
 </blockquote>
 
@@ -20,7 +20,7 @@
       <li><a href="#解决思路">解决思路</a></li>
     </ol>
   </li>
-  <li><a href="#总结">总结</a></li>
+  <li><a href="#a-b">a-b</a></li>
 </ol>
 
 <hr />
@@ -96,7 +96,7 @@ find(int[] candidates,int start,int target,Stack<Integer> stack);</Integer></li>
 
 <hr />
 
-<h2 id="总结">总结</h2>
+<h2 id="a-b">a-b</h2>
 
 <ul>
   <li>递归，在不满足递归结束条件的时候，将程序“递”给下一层；若满足了递归结束条件，结束该层程序，即为“归”。</li>
