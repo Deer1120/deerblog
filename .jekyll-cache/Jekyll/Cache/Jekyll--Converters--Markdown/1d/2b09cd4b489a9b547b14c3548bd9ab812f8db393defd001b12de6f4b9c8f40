@@ -1,0 +1,239 @@
+I";<p>大学里接受到的知识，一个SpringMVC项目，要有web.xml,applicationContext.xml,springmvc.xml这三个最基本的配置文件。
+其实从Spring4版本以来，官网就推荐零配置了。所以，我们还是要关注官网才能跟得上潮流啊！</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#SpringMVC配置文件">SpringMVC配置文件</a></li>
+  <li><a href="#零配置的实现">零配置的实现</a>
+    <ol>
+      <li><a href="#为什么可以实现零配置">为什么可以实现零配置</a></li>
+      <li><a href="#代码实现">代码实现</a></li>
+    </ol>
+  </li>
+  <li><a href="#参考资料">参考资料</a></li>
+</ol>
+
+<hr />
+
+<h2 id="springmvc配置文件">SpringMVC配置文件</h2>
+<p>众所周知，一个SpringMVC起码要有web.xml,applicationContext.xml,springmvc.xml这三个最基本的配置文件。那么这三个配置文件有什么用呢？
+我们只有知道它们的具体作用才可以用别的方式来取代。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;web-app&gt;
+
+    &lt;listener&gt;
+        &lt;listener-class&gt;org.springframework.web.context.ContextLoaderListener&lt;/listener-class&gt;
+    &lt;/listener&gt;
+
+    &lt;context-param&gt;
+        &lt;param-name&gt;contextConfigLocation&lt;/param-name&gt;
+        &lt;param-value&gt;/WEB-INF/app-context.xml&lt;/param-value&gt;
+    &lt;/context-param&gt;
+
+    &lt;servlet&gt;
+        &lt;servlet-name&gt;app&lt;/servlet-name&gt;
+        &lt;servlet-class&gt;org.springframework.web.servlet.DispatcherServlet&lt;/servlet-class&gt;
+        &lt;init-param&gt;
+            &lt;param-name&gt;contextConfigLocation&lt;/param-name&gt;
+            &lt;param-value&gt;&lt;/param-value&gt;
+        &lt;/init-param&gt;
+        &lt;load-on-startup&gt;1&lt;/load-on-startup&gt;
+    &lt;/servlet&gt;
+
+    &lt;servlet-mapping&gt;
+        &lt;servlet-name&gt;app&lt;/servlet-name&gt;
+        &lt;url-pattern&gt;/app/*&lt;/url-pattern&gt;
+    &lt;/servlet-mapping&gt;
+
+&lt;/web-app&gt;
+</code></pre></div></div>
+<p>以上是官网提供的web.xml配置文件代码。Tomcat启动时，会去解析web.xml文件，listener标签和context-param负责初始化Spring环境。
+servlet和servlet-mapping标签是负责将servlet注册给tomcat容器。</p>
+
+<p>applicationContext.xml和springmvc.xml这两个配置文件是负责扫描项目中的配置。</p>
+
+<hr />
+
+<h2 id="零配置的实现">零配置的实现</h2>
+<h3 id="为什么可以实现零配置">为什么可以实现零配置</h3>
+<p>如果我们可以用其他方式来实现这三个配置文件的功能，那么就可以实现零配置了。</p>
+
+<p>在org.springframework.spring-web包下的META-INF下有一个service配置，内容是org.springframework.web.SpringServletContainerInitializer。
+Servlet3+要求Web容器(在这里就是tomcat)在启动时必须实现该类的onStartup方法.
+<img src="/img/springmvc/mavenclass.png" alt="service配置内容" title="service配置内容" /></p>
+
+<p>HandlesTypes注解的作用：该类的onStartup方法会运行注解中WebApplicationInitializer接口实现类的onStartup方法
+<img src="/img/springmvc/initializer.png" alt="SpringServletContainerInitializer类" title="SpringServletContainerInitializer类" /></p>
+
+<p>因此我们可以自己写一个类，实现WebApplicationInitializer接口，重写onStartup方法，在方法中进行Spring环境的初始化，servlet的注册以及项目配置的扫描功能。</p>
+
+<h3 id="代码实现">代码实现</h3>
+
+<p>首先建立一个spring web项目。项目的结构图如下：</p>
+
+<p><img src="/Users/deer/Library/Application Support/typora-user-images/image-20200514181338630.png" alt="image-20200514181338630" /></p>
+
+<p>AppConfig类：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">deer</span><span class="o">.</span><span class="na">study</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.springframework.context.annotation.ComponentScan</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.context.annotation.Configuration</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.servlet.config.annotation.EnableWebMvc</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.servlet.config.annotation.WebMvcConfigurer</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author deer
+ * @description 配置类
+ * @date 2020-05-14
+ */</span>
+
+<span class="nd">@Configuration</span>
+<span class="nd">@ComponentScan</span><span class="o">(</span><span class="s">"com.deer.study"</span><span class="o">)</span>
+<span class="nd">@EnableWebMvc</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">AppConfig</span> <span class="kd">implements</span> <span class="nc">WebMvcConfigurer</span> <span class="o">{</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<p>IndexController类</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">deer</span><span class="o">.</span><span class="na">study</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.springframework.stereotype.Controller</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.bind.annotation.RequestMapping</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.bind.annotation.ResponseBody</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author deer
+ * @description 请求处理类
+ * @date 2020-05-14
+ */</span>
+<span class="nd">@Controller</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">IndexController</span> <span class="o">{</span>
+
+    <span class="nd">@RequestMapping</span><span class="o">(</span><span class="s">"/index.do"</span><span class="o">)</span>
+    <span class="nd">@ResponseBody</span>
+    <span class="kd">public</span> <span class="nc">String</span> <span class="nf">index</span><span class="o">(){</span>
+        <span class="nc">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"text index"</span><span class="o">);</span>
+        <span class="k">return</span> <span class="s">"index"</span><span class="o">;</span>
+    <span class="o">}</span>
+
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>InnerTomcat类：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">deer</span><span class="o">.</span><span class="na">study</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.apache.catalina.Context</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.catalina.LifecycleListener</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.catalina.startup.Tomcat</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author deer
+ * @description 内嵌tomcat类
+ * @date 2020-05-14
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">InnerTomcat</span> <span class="o">{</span>
+    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="nc">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="nc">Tomcat</span> <span class="n">tomcat</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">Tomcat</span><span class="o">();</span>
+        <span class="n">tomcat</span><span class="o">.</span><span class="na">setPort</span><span class="o">(</span><span class="mi">9098</span><span class="o">);</span>
+        <span class="nc">Context</span> <span class="n">context</span> <span class="o">=</span>  <span class="n">tomcat</span><span class="o">.</span><span class="na">addContext</span><span class="o">(</span><span class="s">"/"</span><span class="o">,</span><span class="nc">System</span><span class="o">.</span><span class="na">getProperty</span><span class="o">(</span><span class="s">"java.io.tmpdir"</span><span class="o">));</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">addLifecycleListener</span><span class="o">((</span><span class="nc">LifecycleListener</span><span class="o">)</span> <span class="nc">Class</span><span class="o">.</span><span class="na">forName</span><span class="o">(</span><span class="n">tomcat</span><span class="o">.</span><span class="na">getHost</span><span class="o">().</span><span class="na">getConfigClass</span><span class="o">()).</span><span class="na">newInstance</span><span class="o">());</span>
+        <span class="n">tomcat</span><span class="o">.</span><span class="na">start</span><span class="o">();</span>
+        <span class="n">tomcat</span><span class="o">.</span><span class="na">getServer</span><span class="o">().</span><span class="na">await</span><span class="o">();</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<p>WebInitializer类：</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">deer</span><span class="o">.</span><span class="na">study</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.springframework.web.WebApplicationInitializer</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.context.support.AnnotationConfigWebApplicationContext</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.servlet.DispatcherServlet</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">javax.servlet.ServletContext</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">javax.servlet.ServletRegistration</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author deer
+ * @description springMVC配置类
+ * @date 2020-05-14
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">WebInitializer</span> <span class="kd">implements</span> <span class="nc">WebApplicationInitializer</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">onStartup</span><span class="o">(</span><span class="nc">ServletContext</span> <span class="n">servletContext</span><span class="o">)</span> <span class="o">{</span>
+        <span class="nc">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"11111"</span><span class="o">);</span>
+        <span class="c1">//初始化Spring环境</span>
+        <span class="nc">AnnotationConfigWebApplicationContext</span> <span class="n">ac</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">AnnotationConfigWebApplicationContext</span><span class="o">();</span>
+        <span class="c1">//AppConfig类的@Configure注解和@ComponentScan注解会扫描项目中的配置</span>
+        <span class="n">ac</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="nc">AppConfig</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+
+        <span class="c1">//Servlet的注册</span>
+        <span class="nc">DispatcherServlet</span> <span class="n">servlet</span><span class="o">=</span><span class="k">new</span> <span class="nc">DispatcherServlet</span><span class="o">(</span><span class="n">ac</span><span class="o">);</span>
+        <span class="nc">ServletRegistration</span><span class="o">.</span><span class="na">Dynamic</span> <span class="n">ds</span><span class="o">=</span><span class="n">servletContext</span><span class="o">.</span><span class="na">addServlet</span><span class="o">(</span><span class="s">"ds"</span><span class="o">,</span><span class="n">servlet</span><span class="o">);</span>
+        <span class="n">ds</span><span class="o">.</span><span class="na">addMapping</span><span class="o">(</span><span class="s">"*.do"</span><span class="o">);</span>
+        <span class="n">ds</span><span class="o">.</span><span class="na">setLoadOnStartup</span><span class="o">(</span><span class="mi">1</span><span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+
+<p>WebApplicationInitializer的实现类</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class MyWebApplicationInitializer implements WebApplicationInitializer {
+    @Override
+    public void onStartup(ServletContext servletContext) throws ServletException {
+        //初始化Spring环境
+        AnnotationConfigWebApplicationContext ac = new AnnotationConfigWebApplicationContext();
+        //AppConfig类的@Configure注解和@ComponentScan注解会扫描项目中的配置
+        ac.register(AppConfig.class);
+
+        //Servlet的注册
+        DispatcherServlet servlet=new DispatcherServlet(ac);
+        ServletRegistration.Dynamic ds=servletContext.addServlet("ds",servlet);
+        ds.addMapping("*.do");
+        ds.setLoadOnStartup(1);
+    }
+}
+</code></pre></div></div>
+
+<p>AppConfig类</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@Configuration
+@ComponentScan({"com.deer.study"})
+public class AppConfig {
+}
+</code></pre></div></div>
+
+<p>这里可以写一个Controller测试类</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@Controller
+public class IndexController {
+
+    @RequestMapping("/index.do")
+    public void index(){
+
+        System.out.println("test index");
+    }
+
+}
+</code></pre></div></div>
+
+<p>由此，配置结束，不用写基本的xml配置文件，通过WebApplicationInitializer类即可完成配置。将项目部署并启动，访问ip:port/index.do，在控制台打印出test index即成功。
+总的来说，可以实现零配置依靠的是JavaConfig(注解)和Servlet3+新标准。</p>
+
+<hr />
+
+<h2 id="参考资料">参考资料</h2>
+<ul>
+  <li><small><a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/web.html">spring官网</a></small></li>
+</ul>
+
+<hr />
+
+:ET
