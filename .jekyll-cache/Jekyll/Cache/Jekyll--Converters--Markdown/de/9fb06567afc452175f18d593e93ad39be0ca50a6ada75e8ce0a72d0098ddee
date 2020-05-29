@@ -1,0 +1,196 @@
+I"dP<p>为了长久的职业发展，不能仅满足于CRUD，因此，开始了源码的阅读。这篇博客描述的是策略模式在Spring源码中的应用。
+当然，Spring源码那么庞大，自己也没有读完，所以，这篇博客会一直更新。</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#什么是策略模式">什么是策略模式</a></li>
+  <li><a href="#策略模式在Spring源码中的应用">策略模式在Spring源码中的应用</a>
+    <ol>
+      <li><a href="#判断是否进行代理">判断是否进行代理</a></li>
+      <li><a href="#推断构造函数，实例化对象">推断构造函数，实例化对象</a></li>
+      <li><a href="#处理合并的BeanDefinition">处理合并的BeanDefinition</a></li>
+      <li><a href="#循环依赖">循环依赖</a></li>
+      <li><a href="#属性填充">属性填充</a></li>
+      <li><a href="#初始化Bean">初始化Bean</a></li>
+    </ol>
+  </li>
+  <li><a href="#参考资料">参考资料</a></li>
+</ol>
+
+<hr />
+
+<h2 id="什么是策略模式">什么是策略模式</h2>
+<blockquote>
+  <p>策略模式作为一种软件设计模式，指对象有某个行为，但是在不同的场景中，该行为有不同的实现算法。(百度百科)</p>
+</blockquote>
+
+<p>将上述的定义用java来表示，那便可以用接口来表示对象的某个行为，接口的实现类就是对象在不同场景的具体行为了。</p>
+
+<hr />
+
+<h2 id="策略模式在spring源码中的应用">策略模式在Spring源码中的应用</h2>
+<p>一个接口的方法被很多个实现类重写，这就注定了这个方法的功能不是单一的。比如，MergedBeanDefinitionPostProcessor接口的postProcessMergedBeanDefinition方法
+在不同的实现类里有不同的实现：
+（1）AutowiredAnnotationBeanPostProcessor中的postProcessMergedBeanDefinition方法是找到@Autowired @Value的属性方法
+（2）CommonAnnotationBeanPostProcessor中的postProcessMergedBeanDefinition方法是找到@Resouurce的属性方法
+……….</p>
+
+<p>我们从Spring的生命周期说起：</p>
+
+<h3 id="判断是否进行代理">判断是否进行代理</h3>
+<p>Spring会判断该对象要不要执行代理，如果前期已经被代理过或者该对象是切面类等不需要被代理的，那就放入adviseBeans中。
+在判断的时候，会执行org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsBeforeInstantiation方法</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Nullable</span>
+<span class="kd">protected</span> <span class="nc">Object</span> <span class="nf">applyBeanPostProcessorsBeforeInstantiation</span><span class="o">(</span><span class="nc">Class</span><span class="o">&lt;?&gt;</span> <span class="n">beanClass</span><span class="o">,</span> <span class="nc">String</span> <span class="n">beanName</span><span class="o">)</span> <span class="o">{</span>
+	<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+		<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+			<span class="nc">InstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+			<span class="nc">Object</span> <span class="n">result</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">postProcessBeforeInstantiation</span><span class="o">(</span><span class="n">beanClass</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">result</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+				<span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+	<span class="o">}</span>
+	<span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>在这里，InstantiationAwareBeanPostProcessor是一个接口，而它有很多实现类，重写postProcessBeforeInstantiation方法，便可以实现不同的功能</p>
+
+<h3 id="推断构造函数实例化对象">推断构造函数，实例化对象</h3>
+<p>Spring推断构造函数：org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#determineConstructorsFromBeanPostProcessors</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Nullable</span>
+<span class="kd">protected</span> <span class="nc">Constructor</span><span class="o">&lt;?&gt;[]</span> <span class="n">determineConstructorsFromBeanPostProcessors</span><span class="o">(</span><span class="nd">@Nullable</span> <span class="nc">Class</span><span class="o">&lt;?&gt;</span> <span class="n">beanClass</span><span class="o">,</span> <span class="nc">String</span> <span class="n">beanName</span><span class="o">)</span>
+		<span class="kd">throws</span> <span class="nc">BeansException</span> <span class="o">{</span>
+
+	<span class="k">if</span> <span class="o">(</span><span class="n">beanClass</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">hasInstantiationAwareBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+		<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">SmartInstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+				<span class="c1">// 推断构造函数的BeanPostProcessor：AutowiredAnnotationBeanPostProcessor</span>
+				<span class="nc">SmartInstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">SmartInstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+				<span class="nc">Constructor</span><span class="o">&lt;?&gt;[]</span> <span class="n">ctors</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">determineCandidateConstructors</span><span class="o">(</span><span class="n">beanClass</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+				<span class="k">if</span> <span class="o">(</span><span class="n">ctors</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+					<span class="k">return</span> <span class="n">ctors</span><span class="o">;</span>
+				<span class="o">}</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+	<span class="o">}</span>
+	<span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>SmartInstantiationAwareBeanPostProcessor接口的determineCandidateConstructors方法</p>
+
+<h3 id="处理合并的beandefinition">处理合并的BeanDefinition</h3>
+<p>为了接下来的属性注入，要在这步中，将BeanDefinition的属性拿出来：org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#applyMergedBeanDefinitionPostProcessors</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protected</span> <span class="kt">void</span> <span class="nf">applyMergedBeanDefinitionPostProcessors</span><span class="o">(</span><span class="nc">RootBeanDefinition</span> <span class="n">mbd</span><span class="o">,</span> <span class="nc">Class</span><span class="o">&lt;?&gt;</span> <span class="n">beanType</span><span class="o">,</span> <span class="nc">String</span> <span class="n">beanName</span><span class="o">)</span> <span class="o">{</span>
+	<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+		<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">MergedBeanDefinitionPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+			<span class="nc">MergedBeanDefinitionPostProcessor</span> <span class="n">bdp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">MergedBeanDefinitionPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+			<span class="cm">/**
+			 * 把@Autowired @Value @Resource这些注解的方法，属性都拿出来了
+			 * AutowiredAnnotationBeanPostProcessor--@Autowired @Value
+			 * CommonAnnotationBeanPostProcessor--@Resource
+			 */</span>
+			<span class="n">bdp</span><span class="o">.</span><span class="na">postProcessMergedBeanDefinition</span><span class="o">(</span><span class="n">mbd</span><span class="o">,</span> <span class="n">beanType</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+		<span class="o">}</span>
+	<span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>MergedBeanDefinitionPostProcessor的postProcessMergedBeanDefinition的方法</p>
+
+<h3 id="循环依赖">循环依赖</h3>
+<p>循环依赖，需要提前注入一个完整的bean，那么本该在后面初始化阶段完成的AOP功能就提前在这里完成了。
+org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#getEarlyBeanReference</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protected</span> <span class="nc">Object</span> <span class="nf">getEarlyBeanReference</span><span class="o">(</span><span class="nc">String</span> <span class="n">beanName</span><span class="o">,</span> <span class="nc">RootBeanDefinition</span> <span class="n">mbd</span><span class="o">,</span> <span class="nc">Object</span> <span class="n">bean</span><span class="o">)</span> <span class="o">{</span>
+	<span class="nc">Object</span> <span class="n">exposedObject</span> <span class="o">=</span> <span class="n">bean</span><span class="o">;</span>
+	<span class="k">if</span> <span class="o">(!</span><span class="n">mbd</span><span class="o">.</span><span class="na">isSynthetic</span><span class="o">()</span> <span class="o">&amp;&amp;</span> <span class="n">hasInstantiationAwareBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+		<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">SmartInstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+				<span class="nc">SmartInstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">SmartInstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+				<span class="n">exposedObject</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">getEarlyBeanReference</span><span class="o">(</span><span class="n">exposedObject</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+	<span class="o">}</span>
+	<span class="k">return</span> <span class="n">exposedObject</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>SmartInstantiationAwareBeanPostProcessor接口的getEarlyBeanReference方法</p>
+
+<h3 id="属性填充">属性填充</h3>
+<p>在属性填充阶段，会有两次策略模式的应用
+第一次，判断是否要进行属性注入</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * 判断是否可以完成属性注入。若重写了postProcessAfterInstantiation方法，让其返回false,那么bean就不会完成属性注入
+ * 但是spring默认返回true
+ *
+ * 这一步是判断是不是所有的bean都要完成属性注入，并不是进行属性注入。在下面会再进行属性注入的具体操作
+ */</span>
+<span class="k">if</span> <span class="o">(!</span><span class="n">mbd</span><span class="o">.</span><span class="na">isSynthetic</span><span class="o">()</span> <span class="o">&amp;&amp;</span> <span class="n">hasInstantiationAwareBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+	<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+		<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+			<span class="nc">InstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+			<span class="k">if</span> <span class="o">(!</span><span class="n">ibp</span><span class="o">.</span><span class="na">postProcessAfterInstantiation</span><span class="o">(</span><span class="n">bw</span><span class="o">.</span><span class="na">getWrappedInstance</span><span class="o">(),</span> <span class="n">beanName</span><span class="o">))</span> <span class="o">{</span>
+				<span class="k">return</span><span class="o">;</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+	<span class="o">}</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+<p>InstantiationAwareBeanPostProcessor接口的postProcessAfterInstantiation方法
+第二次，完成属性注入</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * 调用后置处理器完成注解(@Autowired @Resource @Value....)的属性填充
+ */</span>
+<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+	<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+		<span class="nc">InstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+		<span class="cm">/**
+		 * 在这里完成属性注入
+		 */</span>
+		<span class="nc">PropertyValues</span> <span class="n">pvsToUse</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">postProcessProperties</span><span class="o">(</span><span class="n">pvs</span><span class="o">,</span> <span class="n">bw</span><span class="o">.</span><span class="na">getWrappedInstance</span><span class="o">(),</span> <span class="n">beanName</span><span class="o">);</span>
+		<span class="k">if</span> <span class="o">(</span><span class="n">pvsToUse</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">filteredPds</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+				<span class="n">filteredPds</span> <span class="o">=</span> <span class="n">filterPropertyDescriptorsForDependencyCheck</span><span class="o">(</span><span class="n">bw</span><span class="o">,</span> <span class="n">mbd</span><span class="o">.</span><span class="na">allowCaching</span><span class="o">);</span>
+			<span class="o">}</span>
+			<span class="n">pvsToUse</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">postProcessPropertyValues</span><span class="o">(</span><span class="n">pvs</span><span class="o">,</span> <span class="n">filteredPds</span><span class="o">,</span> <span class="n">bw</span><span class="o">.</span><span class="na">getWrappedInstance</span><span class="o">(),</span> <span class="n">beanName</span><span class="o">);</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">pvsToUse</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+				<span class="k">return</span><span class="o">;</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+		<span class="n">pvs</span> <span class="o">=</span> <span class="n">pvsToUse</span><span class="o">;</span>
+	<span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>InstantiationAwareBeanPostProcessor接口的postProcessProperties方法</p>
+
+<h3 id="初始化bean">初始化Bean</h3>
+<p>org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsBeforeInitialization</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	<span class="nd">@Override</span>
+	<span class="kd">public</span> <span class="nc">Object</span> <span class="nf">applyBeanPostProcessorsBeforeInitialization</span><span class="o">(</span><span class="nc">Object</span> <span class="n">existingBean</span><span class="o">,</span> <span class="nc">String</span> <span class="n">beanName</span><span class="o">)</span>
+			<span class="kd">throws</span> <span class="nc">BeansException</span> <span class="o">{</span>
+
+		<span class="nc">Object</span> <span class="n">result</span> <span class="o">=</span> <span class="n">existingBean</span><span class="o">;</span>
+		<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">processor</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+			<span class="nc">Object</span> <span class="n">current</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="na">postProcessBeforeInitialization</span><span class="o">(</span><span class="n">result</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">current</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+				<span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+			<span class="o">}</span>
+			<span class="n">result</span> <span class="o">=</span> <span class="n">current</span><span class="o">;</span>
+		<span class="o">}</span>
+		<span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+	<span class="o">}</span>
+</code></pre></div></div>
+<p>BeanPostProcessor接口的postProcessBeforeInitialization方法。</p>
+
+<hr />
+
+<h2 id="参考资料">参考资料</h2>
+<ul>
+  <li><small><a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/web.html">spring官网</a></small></li>
+</ul>
+
+<hr />
+
+:ET

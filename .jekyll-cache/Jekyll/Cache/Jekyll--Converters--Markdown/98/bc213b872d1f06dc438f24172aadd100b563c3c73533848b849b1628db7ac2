@@ -1,0 +1,63 @@
+I"�<p>为了长久的职业发展，不能仅满足于CRUD，因此，开始了源码的阅读。这篇博客描述的是策略模式在Spring源码中的应用。
+当然，Spring源码那么庞大，自己也没有读完，所以，这篇博客会一直更新。</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#什么是策略模式">什么是策略模式</a></li>
+  <li><a href="#策略模式在Spring源码中的应用">策略模式在Spring源码中的应用</a>
+    <ol>
+      <li><a href="#为什么可以实现零配置">为什么可以实现零配置</a></li>
+      <li><a href="#代码实现">代码实现</a></li>
+    </ol>
+  </li>
+  <li><a href="#参考资料">参考资料</a></li>
+</ol>
+
+<hr />
+
+<h2 id="什么是策略模式">什么是策略模式</h2>
+<blockquote>
+  <p>策略模式作为一种软件设计模式，指对象有某个行为，但是在不同的场景中，该行为有不同的实现算法。(百度百科)
+将上述的定义用java来表示，那便可以用接口来表示对象的某个行为，接口的实现类就是对象在不同场景的具体行为了。</p>
+</blockquote>
+
+<hr />
+
+<h2 id="策略模式在spring源码中的应用">策略模式在Spring源码中的应用</h2>
+
+<p>我们从Spring的生命周期说起：
+第一步，Spring会判断该对象要不要执行代理，如果前期已经被代理过或者该对象是切面类等不需要被代理的，那就放入adviseBeans中。
+在判断的时候，会执行org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory#applyBeanPostProcessorsBeforeInstantiation方法</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Nullable</span>
+	<span class="kd">protected</span> <span class="nc">Object</span> <span class="nf">applyBeanPostProcessorsBeforeInstantiation</span><span class="o">(</span><span class="nc">Class</span><span class="o">&lt;?&gt;</span> <span class="n">beanClass</span><span class="o">,</span> <span class="nc">String</span> <span class="n">beanName</span><span class="o">)</span> <span class="o">{</span>
+		<span class="cm">/**
+		 * getBeanPostProcessors()会返回很多的BeanPostProcessor，但是在这里，只会调用AnnotationAwareAspectAutoProxyCreator
+		 * 其实也就是AbstractAutoProxyCreator类的postProcessBeforeInstantiation方法，其他类的postProcessBeforeInstantiation方法没做事情
+		 * AbstractAutoProxyCreator类的postProcessBeforeInstantiation方法：判断当前bean将来是否能被代理，如果不能被代理，就放入adviseBeans中
+		 * 然后在执行到代理阶段的时候，会判断符合切点表达式和看是否在adviseBeans中
+		 */</span>
+		<span class="k">for</span> <span class="o">(</span><span class="nc">BeanPostProcessor</span> <span class="n">bp</span> <span class="o">:</span> <span class="n">getBeanPostProcessors</span><span class="o">())</span> <span class="o">{</span>
+			<span class="k">if</span> <span class="o">(</span><span class="n">bp</span> <span class="k">instanceof</span> <span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="o">{</span>
+				<span class="nc">InstantiationAwareBeanPostProcessor</span> <span class="n">ibp</span> <span class="o">=</span> <span class="o">(</span><span class="nc">InstantiationAwareBeanPostProcessor</span><span class="o">)</span> <span class="n">bp</span><span class="o">;</span>
+				<span class="nc">Object</span> <span class="n">result</span> <span class="o">=</span> <span class="n">ibp</span><span class="o">.</span><span class="na">postProcessBeforeInstantiation</span><span class="o">(</span><span class="n">beanClass</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+				<span class="k">if</span> <span class="o">(</span><span class="n">result</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+					<span class="k">return</span> <span class="n">result</span><span class="o">;</span>
+				<span class="o">}</span>
+			<span class="o">}</span>
+		<span class="o">}</span>
+		<span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+	<span class="o">}</span>
+</code></pre></div></div>
+
+<hr />
+
+<h2 id="参考资料">参考资料</h2>
+<ul>
+  <li><small><a href="https://docs.spring.io/spring/docs/current/spring-framework-reference/web.html">spring官网</a></small></li>
+</ul>
+
+<hr />
+
+:ET
