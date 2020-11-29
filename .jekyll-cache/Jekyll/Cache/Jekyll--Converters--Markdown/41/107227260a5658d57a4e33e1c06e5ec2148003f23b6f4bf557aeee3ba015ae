@@ -1,10 +1,11 @@
-I"h^<p>最近在面试，被问到了循环依赖有哪几种。因此写下这篇博客，记录一下。（毕竟在面试之前，自己一直以为只有一种，无知的自己，好想锤死自己！）</p>
+I"�e<p>好久好久没有更新，本来这篇随笔是想在九月份就写的，但当时觉得自己脑子很好用，没必要记录了。
+然而，上周被打脸了，同样的错误犯了两次，必须更新了！</p>
 
 <h2 id="catagory">Catagory</h2>
 
 <ol>
-  <li><a href="#什么是循环依赖">什么是循环依赖</a></li>
-  <li><a href="#循环依赖的分类">循环依赖的分类</a>
+  <li><a href="#AsciiDoc">AsciiDoc</a></li>
+  <li><a href="#书写AsciiDoc文档">书写AsciiDoc文档</a>
     <ol>
       <li><a href="#构造函数注入的循环依赖">构造函数注入的循环依赖</a></li>
       <li><a href="#set方式注入的循环依赖">set方式注入的循环依赖</a></li>
@@ -14,15 +15,32 @@
 
 <hr />
 
-<h2 id="什么是循环依赖">什么是循环依赖</h2>
-<blockquote>
-  <p>两个及两个以上的bean互相持有对方，比如：A中有B，B中有C，C中有A</p>
-</blockquote>
+<h2 id="asciidoc">AsciiDoc</h2>
+<p>AsciiDoc是一种文本文档格式，在如今这家公司，要求用AsciiDoc来生成接口文档（在前一家公司，接口文档都是excel，emmmm)。为什么不用Swagger呢，因为Swagger要写很多参数标记，比较繁琐。而AsciiDoc的话，只是正常写代码注释即可。接下来演示一下！</p>
 
 <hr />
 
-<h2 id="循环依赖的分类">循环依赖的分类</h2>
-<p>spring中的bean可以通过构造函数注入，也可以通过set方式注入，那么循环依赖也会存在这两种情况。</p>
+<h2 id="书写asciidoc文档">书写AsciiDoc文档</h2>
+<p>（前提：你的idea安装了AsciiDoc插件）</p>
+
+<p>首先在项目的src目录下，建立docs/asciidoc文件夹，在asciidoc文件夹下新建index.adoc文件</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[[</span><span class="no">INDEX</span><span class="o">]]</span>
+<span class="o">=</span> <span class="err">文件预览接口文档</span>
+<span class="o">:</span><span class="nl">author:</span> <span class="n">luqq</span>
+<span class="o">:</span><span class="nl">revnumber:</span> <span class="n">v1</span><span class="o">.</span><span class="mi">0</span>
+<span class="o">:</span><span class="nl">revdate:</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">11</span><span class="o">-</span><span class="mi">10</span>
+<span class="o">:</span><span class="nl">toc:</span> <span class="n">left</span>
+<span class="o">:</span><span class="n">toc</span><span class="o">-</span><span class="nl">title:</span> <span class="err">服务目录</span>
+<span class="o">:</span><span class="nl">icons:</span> <span class="n">font</span>
+<span class="o">:</span><span class="n">source</span><span class="o">-</span><span class="nl">highlighter:</span> <span class="n">highlightjs</span>
+
+<span class="o">:</span><span class="n">snippets</span><span class="o">-</span><span class="nl">dir:</span> <span class="o">../../../</span><span class="n">build</span><span class="o">/</span><span class="n">asciidoc</span>
+
+<span class="o">[[</span><span class="nc">APIs</span><span class="o">]]</span>
+<span class="o">==</span> <span class="err">文件预览</span>
+
+<span class="nl">include:</span><span class="o">:</span><span class="n">previewFile</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+</code></pre></div></div>
 
 <h3 id="构造函数注入的循环依赖">构造函数注入的循环依赖</h3>
 <p>首先，这种方式是不可行的，接下来通过例子来跟源码进行调试，说明为什么不可以</p>
@@ -265,6 +283,6 @@ addSingleton(beanName, singletonObject);为什么会强调这个方法呢？来�
 通过getSingleton方法就可以取到了！然而对于通过构造方式注入的，在创建对象的时候已经出错了，都没执行到这个方法，
 因此在getSingleton获取到的是null。</p>
 
-<p><small>这篇博客后期一定会逐步完善，把不是那么完善的内容放出来的原因就是逼着自己去完善！不然拖延症…..逼自己一把！</small></p>
+<p><small>这篇博客后期一定会逐步完善，把不是那么完善的内容放出来的原因就是逼着自己去完善！不然拖延症…..逼自己一把！（下一篇博客：tx-lcn源码分析，淦！）</small></p>
 
 :ET

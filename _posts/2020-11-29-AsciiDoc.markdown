@@ -1,0 +1,251 @@
+---
+layout:     post
+title:      "AsciiDoc"
+subtitle:   ""
+date:       2020-11-29
+author:     "Deer"
+header-img: "img/star-universe-space-all-clouds-cumulus-clouds.jpg"
+tags:
+    - 随笔
+---
+
+好久好久没有更新，本来这篇随笔是想在九月份就写的，但当时觉得自己脑子很好用，没必要记录了。
+然而，上周被打脸了，同样的错误犯了两次，必须更新了！
+
+## Catagory
+
+1. [AsciiDoc](#AsciiDoc)
+2. [书写AsciiDoc文档](#书写AsciiDoc文档)
+	1. [新增build.gradle内容](#新增build.gradle内容)
+	2. [新建adoc文件](#新建adoc文件)
+    3. [新建Test类](#新建Test类)
+    4. [执行命令](#执行命令)
+3. [总结](#总结)
+
+---
+
+
+## AsciiDoc
+AsciiDoc是一种文本文档格式，在如今这家公司，要求用AsciiDoc来生成接口文档（在前一家公司，接口文档都是excel，emmmm)。为什么不用Swagger呢，因为Swagger要写很多参数标记，比较繁琐。而AsciiDoc的话，只是正常写代码注释即可。接下来演示一下！
+
+
+---
+
+## 书写AsciiDoc文档
+（前提：你的idea安装了AsciiDoc插件）
+
+### 新增build.gradle内容
+首先在项目的build.gradle文件里添加如下内容
+```
+plugins {
+    id 'org.asciidoctor.convert' version '2.4.0'
+}
+
+ext {
+    snippetsDir = file('build/asciidoc')
+}
+
+(在dependencies里添加两个依赖)
+testCompile group: 'org.springframework.restdocs', name: 'spring-restdocs-core', version: '2.0.4.RELEASE'
+testCompile group: 'org.springframework.restdocs', name: 'spring-restdocs-mockmvc', version: '2.0.4.RELEASE'
+
+test {
+    outputs.dir snippetsDir
+    useJUnitPlatform()
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    dependsOn test
+}
+
+task("docs", type: Jar) {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}/html5") {
+        into 'static/docs'
+    }
+}
+```
+### 新建adoc文件
+然后在项目的src目录下，建立docs/asciidoc文件夹，在asciidoc文件夹下新建index.adoc文件
+
+```java
+[[INDEX]]
+= 文件预览接口文档
+:author: lu
+:revnumber: v1.0
+:revdate: 2020-11-10
+:toc: left
+:toc-title: 服务目录
+:icons: font
+:source-highlighter: highlightjs
+
+:snippets-dir: ../../../build/asciidoc
+
+[[APIs]]
+== 文件预览
+
+include::previewFile.adoc[]
+```
+紧接着在asciidoc文件夹下新建previewFile.adoc文件
+
+```java
+:path: previewFile
+
+[[preview_file]]
+=== 文件预览
+
+:snippets-dir: ../../../build/asciidoc
+
+.curl 调用方式
+include::{snippets-dir}/{path}/curl-request.adoc[]
+.http request RAW示例信息
+include::{snippets-dir}/{path}/http-request.adoc[]
+.request headers 请求头
+include::{snippets-dir}/{path}/request-headers.adoc[]
+.request body 请求参数说明
+include::{snippets-dir}/{path}/request-fields.adoc[]
+.response body 响应payload
+include::{snippets-dir}/{path}/response-body.adoc[]
+.http response RAW示例信息
+include::{snippets-dir}/{path}/http-response.adoc[]
+.response 响应参数说明
+include::{snippets-dir}/{path}/response-fields.adoc[]
+```
+
+### 新建Test类
+接下来，在项目的test目录下新建两个Test类
+```java
+package com.ai.preview.controller;
+
+import com.ai.Application;
+import com.ai.spring.support.security.authorization.GatewayAuthenticationProcessingFilter;
+import com.ai.spring.support.security.userdetails.AccountDetailsServiceImpl;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.restdocs.JUnitRestDocumentation;
+import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+
+/**
+ * @author lu
+ * @date 2020/11/10
+ */
+@RunWith(SpringJUnit4ClassRunner.class)
+@SpringBootTest(classes = Application.class)
+public abstract class AbstractBaseControllerTest {
+
+    /**
+     * mockMvc
+     */
+    protected MockMvc mockMvc;
+
+    @Autowired
+    private WebApplicationContext context;
+
+    @Autowired
+    protected ObjectMapper objectMapper;
+
+    @Autowired
+    private AccountDetailsServiceImpl accountDetailsService;
+
+    @Rule
+    public final JUnitRestDocumentation restDocumentation = new JUnitRestDocumentation("build/asciidoc");
+
+    @Before
+    public void setUp() {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(this.context)
+                .apply(documentationConfiguration(this.restDocumentation))
+                .addFilters(new GatewayAuthenticationProcessingFilter(accountDetailsService))
+                .build();
+    }
+
+    @After
+    public void after() {
+    }
+}
+```
+
+
+```java
+package com.ai.preview.controller;
+
+import org.junit.Test;
+import org.springframework.http.MediaType;
+import org.springframework.restdocs.payload.JsonFieldType;
+
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
+import static org.springframework.restdocs.payload.PayloadDocumentation.*;
+import static org.springframework.restdocs.payload.PayloadDocumentation.subsectionWithPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * @author lu
+ * @date 2020/11/10
+ */
+public class PreviewControllerTest extends AbstractBaseControllerTest{
+
+    @Test
+    public void preview() throws Exception {
+        final String urlPath = "接口名称";
+        // 构建请求体
+        PreviewTaskRequest request =  PreviewTaskRequest.builder().build();
+        this.mockMvc.perform(
+                post(urlPath)
+                        // 如果需要header 要写上
+                        .header("XXX", "XXX")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+//                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                // 这里的previewFile要和previewFile.adoc文件中的path一致
+                .andDo(document("previewFile",
+                        // 如需，请写上
+                        requestHeaders(headerWithName("Authorization").description("{token_type} {access_token}")),
+                        relaxedRequestFields(
+                                fieldWithPath("requestParam1").description("请求参数解释"),
+                                fieldWithPath("timeStamp").description("时间戳")
+                        ),
+                        relaxedResponseFields(
+                                fieldWithPath("resultCode").description("响应状态码 000000-成功;其它-失败").type(JsonFieldType.STRING),
+                                fieldWithPath("resultMessage").description("响应结果描述"),
+                                fieldWithPath("data").description("响应对象").type(JsonFieldType.OBJECT).attributes().optional(),
+                                subsectionWithPath("data.param1").description("响应参数解释").type(JsonFieldType.STRING).optional(),
+                                subsectionWithPath("data.status").description("状态").type(Integer.TYPE).optional(),
+                                subsectionWithPath("data.message").description("附加信息").type(JsonFieldType.STRING).optional()
+                        ))
+                );
+    }
+}
+```
+新建了需要的文件，目录截图如下
+![目录](/img/asciidoc/002.png "目录")
+
+### 执行命令
+最后，在terminal中执行gradle clean build doc，就可以看到build/asciidoc/html5文件夹了,html5文件夹里的html就是生成的接口文档。
+![目录](/img/asciidoc/001.png "目录")
+
+## 总结
+在这里只是拿一个接口来举例。正常的项目中不止一个接口的，但流程不变，多个接口，那就在index.adoc中引入新建的adoc，然后在test目录下新建接口测试类即可！在调试过程中自己被绊倒两次的地方就是执行的命令语句，自己一直写为gradle clean build。因此每次都没有生成html文件，之后仔细检查，发现在build.gradle文件里配置了task("docs", type: Jar)。因此要在命令语句后加doc
+
+
+<small>这是换了工作后的第一篇博客，新领导超nice，他会提议让我去看源码，在学习源码过程中遇到的问题，可以和他讨论，嘻嘻嘻。因此，我觉得自己以后会常更源码相关的博客了。我也期待更好的自己！</small>
+
+
+
+

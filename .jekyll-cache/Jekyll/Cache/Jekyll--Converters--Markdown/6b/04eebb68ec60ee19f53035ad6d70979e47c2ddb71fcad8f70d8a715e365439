@@ -1,0 +1,234 @@
+I"�i<p>好久好久没有更新，本来这篇随笔是想在九月份就写的，但当时觉得自己脑子很好用，没必要记录了。
+然而，上周被打脸了，同样的错误犯了两次，必须更新了！</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#AsciiDoc">AsciiDoc</a></li>
+  <li><a href="#书写AsciiDoc文档">书写AsciiDoc文档</a>
+    <ol>
+      <li><a href="#新增build.gradle内容">新增build.gradle内容</a></li>
+      <li><a href="#新建adoc文件">新建adoc文件</a></li>
+      <li><a href="#新建Test类">新建Test类</a></li>
+      <li><a href="#执行命令">执行命令</a></li>
+    </ol>
+  </li>
+  <li><a href="#总结">总结</a></li>
+</ol>
+
+<hr />
+
+<h2 id="asciidoc">AsciiDoc</h2>
+<p>AsciiDoc是一种文本文档格式，在如今这家公司，要求用AsciiDoc来生成接口文档（在前一家公司，接口文档都是excel，emmmm)。为什么不用Swagger呢，因为Swagger要写很多参数标记，比较繁琐。而AsciiDoc的话，只是正常写代码注释即可。接下来演示一下！</p>
+
+<hr />
+
+<h2 id="书写asciidoc文档">书写AsciiDoc文档</h2>
+<p>（前提：你的idea安装了AsciiDoc插件）</p>
+
+<h3 id="新增buildgradle内容">新增build.gradle内容</h3>
+<p>首先在项目的build.gradle文件里添加如下内容</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>plugins {
+    id 'org.asciidoctor.convert' version '2.4.0'
+}
+
+ext {
+    snippetsDir = file('build/asciidoc')
+}
+
+(在dependencies里添加两个依赖)
+testCompile group: 'org.springframework.restdocs', name: 'spring-restdocs-core', version: '2.0.4.RELEASE'
+testCompile group: 'org.springframework.restdocs', name: 'spring-restdocs-mockmvc', version: '2.0.4.RELEASE'
+
+test {
+    outputs.dir snippetsDir
+    useJUnitPlatform()
+}
+
+asciidoctor {
+    inputs.dir snippetsDir
+    dependsOn test
+}
+
+task("docs", type: Jar) {
+    dependsOn asciidoctor
+    from("${asciidoctor.outputDir}/html5") {
+        into 'static/docs'
+    }
+}
+</code></pre></div></div>
+<h3 id="新建adoc文件">新建adoc文件</h3>
+<p>然后在项目的src目录下，建立docs/asciidoc文件夹，在asciidoc文件夹下新建index.adoc文件</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">[[</span><span class="no">INDEX</span><span class="o">]]</span>
+<span class="o">=</span> <span class="err">文件预览接口文档</span>
+<span class="o">:</span><span class="nl">author:</span> <span class="n">lu</span>
+<span class="o">:</span><span class="nl">revnumber:</span> <span class="n">v1</span><span class="o">.</span><span class="mi">0</span>
+<span class="o">:</span><span class="nl">revdate:</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">11</span><span class="o">-</span><span class="mi">10</span>
+<span class="o">:</span><span class="nl">toc:</span> <span class="n">left</span>
+<span class="o">:</span><span class="n">toc</span><span class="o">-</span><span class="nl">title:</span> <span class="err">服务目录</span>
+<span class="o">:</span><span class="nl">icons:</span> <span class="n">font</span>
+<span class="o">:</span><span class="n">source</span><span class="o">-</span><span class="nl">highlighter:</span> <span class="n">highlightjs</span>
+
+<span class="o">:</span><span class="n">snippets</span><span class="o">-</span><span class="nl">dir:</span> <span class="o">../../../</span><span class="n">build</span><span class="o">/</span><span class="n">asciidoc</span>
+
+<span class="o">[[</span><span class="nc">APIs</span><span class="o">]]</span>
+<span class="o">==</span> <span class="err">文件预览</span>
+
+<span class="nl">include:</span><span class="o">:</span><span class="n">previewFile</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+</code></pre></div></div>
+<p>紧接着在asciidoc文件夹下新建previewFile.adoc文件</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">:</span><span class="nl">path:</span> <span class="n">previewFile</span>
+
+<span class="o">[[</span><span class="n">preview_file</span><span class="o">]]</span>
+<span class="o">===</span> <span class="err">文件预览</span>
+
+<span class="o">:</span><span class="n">snippets</span><span class="o">-</span><span class="nl">dir:</span> <span class="o">../../../</span><span class="n">build</span><span class="o">/</span><span class="n">asciidoc</span>
+
+<span class="o">.</span><span class="na">curl</span> <span class="err">调用方式</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">curl</span><span class="o">-</span><span class="n">request</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">http</span> <span class="n">request</span> <span class="n">RAW</span><span class="err">示例信息</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">http</span><span class="o">-</span><span class="n">request</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">request</span> <span class="n">headers</span> <span class="err">请求头</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">request</span><span class="o">-</span><span class="n">headers</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">request</span> <span class="n">body</span> <span class="err">请求参数说明</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">request</span><span class="o">-</span><span class="n">fields</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">response</span> <span class="n">body</span> <span class="err">响应</span><span class="n">payload</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">response</span><span class="o">-</span><span class="n">body</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">http</span> <span class="n">response</span> <span class="n">RAW</span><span class="err">示例信息</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">http</span><span class="o">-</span><span class="n">response</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+<span class="o">.</span><span class="na">response</span> <span class="err">响应参数说明</span>
+<span class="nl">include:</span><span class="o">:{</span><span class="n">snippets</span><span class="o">-</span><span class="n">dir</span><span class="o">}/{</span><span class="n">path</span><span class="o">}/</span><span class="n">response</span><span class="o">-</span><span class="n">fields</span><span class="o">.</span><span class="na">adoc</span><span class="o">[]</span>
+</code></pre></div></div>
+
+<h3 id="新建test类">新建Test类</h3>
+<p>接下来，在项目的test目录下新建两个Test类</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">ai</span><span class="o">.</span><span class="na">preview</span><span class="o">.</span><span class="na">controller</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">com.ai.Application</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.ai.spring.support.security.authorization.GatewayAuthenticationProcessingFilter</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.ai.spring.support.security.userdetails.AccountDetailsServiceImpl</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">com.fasterxml.jackson.databind.ObjectMapper</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.junit.After</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.junit.Before</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.junit.Rule</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.junit.runner.RunWith</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.beans.factory.annotation.Autowired</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.boot.test.context.SpringBootTest</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.restdocs.JUnitRestDocumentation</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.test.context.junit4.SpringJUnit4ClassRunner</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.test.web.servlet.MockMvc</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.test.web.servlet.setup.MockMvcBuilders</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.web.context.WebApplicationContext</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">mockmvc</span><span class="o">.</span><span class="na">MockMvcRestDocumentation</span><span class="o">.</span><span class="na">documentationConfiguration</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author lu
+ * @date 2020/11/10
+ */</span>
+<span class="nd">@RunWith</span><span class="o">(</span><span class="nc">SpringJUnit4ClassRunner</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="nd">@SpringBootTest</span><span class="o">(</span><span class="n">classes</span> <span class="o">=</span> <span class="nc">Application</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">AbstractBaseControllerTest</span> <span class="o">{</span>
+
+    <span class="cm">/**
+     * mockMvc
+     */</span>
+    <span class="kd">protected</span> <span class="nc">MockMvc</span> <span class="n">mockMvc</span><span class="o">;</span>
+
+    <span class="nd">@Autowired</span>
+    <span class="kd">private</span> <span class="nc">WebApplicationContext</span> <span class="n">context</span><span class="o">;</span>
+
+    <span class="nd">@Autowired</span>
+    <span class="kd">protected</span> <span class="nc">ObjectMapper</span> <span class="n">objectMapper</span><span class="o">;</span>
+
+    <span class="nd">@Autowired</span>
+    <span class="kd">private</span> <span class="nc">AccountDetailsServiceImpl</span> <span class="n">accountDetailsService</span><span class="o">;</span>
+
+    <span class="nd">@Rule</span>
+    <span class="kd">public</span> <span class="kd">final</span> <span class="nc">JUnitRestDocumentation</span> <span class="n">restDocumentation</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">JUnitRestDocumentation</span><span class="o">(</span><span class="s">"build/asciidoc"</span><span class="o">);</span>
+
+    <span class="nd">@Before</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setUp</span><span class="o">()</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">mockMvc</span> <span class="o">=</span> <span class="nc">MockMvcBuilders</span><span class="o">.</span><span class="na">webAppContextSetup</span><span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">context</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">documentationConfiguration</span><span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">restDocumentation</span><span class="o">))</span>
+                <span class="o">.</span><span class="na">addFilters</span><span class="o">(</span><span class="k">new</span> <span class="nc">GatewayAuthenticationProcessingFilter</span><span class="o">(</span><span class="n">accountDetailsService</span><span class="o">))</span>
+                <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+    <span class="o">}</span>
+
+    <span class="nd">@After</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">after</span><span class="o">()</span> <span class="o">{</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">com</span><span class="o">.</span><span class="na">ai</span><span class="o">.</span><span class="na">preview</span><span class="o">.</span><span class="na">controller</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">org.junit.Test</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.http.MediaType</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.springframework.restdocs.payload.JsonFieldType</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">headers</span><span class="o">.</span><span class="na">HeaderDocumentation</span><span class="o">.</span><span class="na">headerWithName</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">headers</span><span class="o">.</span><span class="na">HeaderDocumentation</span><span class="o">.</span><span class="na">requestHeaders</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">mockmvc</span><span class="o">.</span><span class="na">MockMvcRestDocumentation</span><span class="o">.</span><span class="na">document</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">mockmvc</span><span class="o">.</span><span class="na">RestDocumentationRequestBuilders</span><span class="o">.</span><span class="na">post</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">payload</span><span class="o">.</span><span class="na">PayloadDocumentation</span><span class="o">.*;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">restdocs</span><span class="o">.</span><span class="na">payload</span><span class="o">.</span><span class="na">PayloadDocumentation</span><span class="o">.</span><span class="na">subsectionWithPath</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">test</span><span class="o">.</span><span class="na">web</span><span class="o">.</span><span class="na">servlet</span><span class="o">.</span><span class="na">result</span><span class="o">.</span><span class="na">MockMvcResultHandlers</span><span class="o">.</span><span class="na">print</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">test</span><span class="o">.</span><span class="na">web</span><span class="o">.</span><span class="na">servlet</span><span class="o">.</span><span class="na">result</span><span class="o">.</span><span class="na">MockMvcResultMatchers</span><span class="o">.</span><span class="na">content</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">springframework</span><span class="o">.</span><span class="na">test</span><span class="o">.</span><span class="na">web</span><span class="o">.</span><span class="na">servlet</span><span class="o">.</span><span class="na">result</span><span class="o">.</span><span class="na">MockMvcResultMatchers</span><span class="o">.</span><span class="na">status</span><span class="o">;</span>
+
+<span class="cm">/**
+ * @author lu
+ * @date 2020/11/10
+ */</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">PreviewControllerTest</span> <span class="kd">extends</span> <span class="nc">AbstractBaseControllerTest</span><span class="o">{</span>
+
+    <span class="nd">@Test</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">preview</span><span class="o">()</span> <span class="kd">throws</span> <span class="nc">Exception</span> <span class="o">{</span>
+        <span class="kd">final</span> <span class="nc">String</span> <span class="n">urlPath</span> <span class="o">=</span> <span class="s">"接口名称"</span><span class="o">;</span>
+        <span class="c1">// 构建请求体</span>
+        <span class="nc">PreviewTaskRequest</span> <span class="n">request</span> <span class="o">=</span>  <span class="nc">PreviewTaskRequest</span><span class="o">.</span><span class="na">builder</span><span class="o">().</span><span class="na">build</span><span class="o">();</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">mockMvc</span><span class="o">.</span><span class="na">perform</span><span class="o">(</span>
+                <span class="n">post</span><span class="o">(</span><span class="n">urlPath</span><span class="o">)</span>
+                        <span class="c1">// 如果需要header 要写上</span>
+                        <span class="o">.</span><span class="na">header</span><span class="o">(</span><span class="s">"XXX"</span><span class="o">,</span> <span class="s">"XXX"</span><span class="o">)</span>
+                        <span class="o">.</span><span class="na">contentType</span><span class="o">(</span><span class="nc">MediaType</span><span class="o">.</span><span class="na">APPLICATION_JSON</span><span class="o">)</span>
+                        <span class="o">.</span><span class="na">content</span><span class="o">(</span><span class="n">objectMapper</span><span class="o">.</span><span class="na">writeValueAsString</span><span class="o">(</span><span class="n">request</span><span class="o">)))</span>
+                <span class="o">.</span><span class="na">andDo</span><span class="o">(</span><span class="n">print</span><span class="o">())</span>
+<span class="c1">//                .andExpect(status().isOk())</span>
+                <span class="o">.</span><span class="na">andExpect</span><span class="o">(</span><span class="n">content</span><span class="o">().</span><span class="na">contentType</span><span class="o">(</span><span class="nc">MediaType</span><span class="o">.</span><span class="na">APPLICATION_JSON</span><span class="o">))</span>
+                <span class="c1">// 这里的previewFile要和previewFile.adoc文件中的path一致</span>
+                <span class="o">.</span><span class="na">andDo</span><span class="o">(</span><span class="n">document</span><span class="o">(</span><span class="s">"previewFile"</span><span class="o">,</span>
+                        <span class="c1">// 如需，请写上</span>
+                        <span class="n">requestHeaders</span><span class="o">(</span><span class="n">headerWithName</span><span class="o">(</span><span class="s">"Authorization"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"{token_type} {access_token}"</span><span class="o">)),</span>
+                        <span class="n">relaxedRequestFields</span><span class="o">(</span>
+                                <span class="n">fieldWithPath</span><span class="o">(</span><span class="s">"requestParam1"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"请求参数解释"</span><span class="o">),</span>
+                                <span class="n">fieldWithPath</span><span class="o">(</span><span class="s">"timeStamp"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"时间戳"</span><span class="o">)</span>
+                        <span class="o">),</span>
+                        <span class="n">relaxedResponseFields</span><span class="o">(</span>
+                                <span class="n">fieldWithPath</span><span class="o">(</span><span class="s">"resultCode"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"响应状态码 000000-成功;其它-失败"</span><span class="o">).</span><span class="na">type</span><span class="o">(</span><span class="nc">JsonFieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">),</span>
+                                <span class="n">fieldWithPath</span><span class="o">(</span><span class="s">"resultMessage"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"响应结果描述"</span><span class="o">),</span>
+                                <span class="n">fieldWithPath</span><span class="o">(</span><span class="s">"data"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"响应对象"</span><span class="o">).</span><span class="na">type</span><span class="o">(</span><span class="nc">JsonFieldType</span><span class="o">.</span><span class="na">OBJECT</span><span class="o">).</span><span class="na">attributes</span><span class="o">().</span><span class="na">optional</span><span class="o">(),</span>
+                                <span class="n">subsectionWithPath</span><span class="o">(</span><span class="s">"data.param1"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"响应参数解释"</span><span class="o">).</span><span class="na">type</span><span class="o">(</span><span class="nc">JsonFieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">).</span><span class="na">optional</span><span class="o">(),</span>
+                                <span class="n">subsectionWithPath</span><span class="o">(</span><span class="s">"data.status"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"状态"</span><span class="o">).</span><span class="na">type</span><span class="o">(</span><span class="nc">Integer</span><span class="o">.</span><span class="na">TYPE</span><span class="o">).</span><span class="na">optional</span><span class="o">(),</span>
+                                <span class="n">subsectionWithPath</span><span class="o">(</span><span class="s">"data.message"</span><span class="o">).</span><span class="na">description</span><span class="o">(</span><span class="s">"附加信息"</span><span class="o">).</span><span class="na">type</span><span class="o">(</span><span class="nc">JsonFieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">).</span><span class="na">optional</span><span class="o">()</span>
+                        <span class="o">))</span>
+                <span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>新建了需要的文件，目录截图如下
+<img src="/img/asciidoc/002.png" alt="目录" title="目录" /></p>
+
+<h3 id="执行命令">执行命令</h3>
+<p>最后，在terminal中执行gradle clean build doc，就可以看到build/asciidoc/html5文件夹了,html5文件夹里的html就是生成的接口文档。
+<img src="/img/asciidoc/001.png" alt="目录" title="目录" /></p>
+
+<h2 id="总结">总结</h2>
+<p>在这里只是拿一个接口来举例。正常的项目中不止一个接口的，但流程不变，多个接口，那就在index.adoc中引入新建的adoc，然后在test目录下新建接口测试类即可！在调试过程中自己被绊倒两次的地方就是执行的命令语句，自己一直写为gradle clean build。因此每次都没有生成html文件，之后仔细检查，发现在build.gradle文件里配置了task(“docs”, type: Jar)。因此要在命令语句后加doc</p>
+
+<p><small>这是换了工作后的第一篇博客，新领导超nice，他会提议让我去看源码，在学习源码过程中遇到的问题，可以和他讨论，嘻嘻嘻。因此，我觉得自己以后会常更源码相关的博客了。我也期待更好的自己！</small></p>
+
+:ET

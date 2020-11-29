@@ -86,3 +86,5 @@ friends: [
 
 # plugins
 plugins: [jekyll-paginate]
+
+port: 4000
