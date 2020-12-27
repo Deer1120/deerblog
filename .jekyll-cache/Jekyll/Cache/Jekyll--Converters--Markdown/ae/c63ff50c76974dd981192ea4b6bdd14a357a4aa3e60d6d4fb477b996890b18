@@ -1,0 +1,345 @@
+I"�<p>叨叨好久的源码，终于要开始了。</p>
+
+<h2 id="catagory">Catagory</h2>
+
+<ol>
+  <li><a href="#AnnotationConfigApplicationContext的构造函数">AnnotationConfigApplicationContext的构造函数</a>
+    <ol>
+      <li><a href="#this()">this()</a></li>
+      <li><a href="#register(annotatedClasses)">register(annotatedClasses)</a></li>
+      <li><a href="#refresh()">refresh()</a>
+        <ol>
+          <li><a href="#prepareRefresh()">prepareRefresh()</a></li>
+          <li><a href="#obtainFreshBeanFactory()">obtainFreshBeanFactory()</a></li>
+          <li><a href="#prepareBeanFactory(beanFactory)">prepareBeanFactory(beanFactory)</a></li>
+        </ol>
+      </li>
+    </ol>
+  </li>
+  <li><a href="#参考资料">参考资料</a></li>
+</ol>
+
+<hr />
+
+<h2 id="annotationconfigapplicationcontext的构造函数">AnnotationConfigApplicationContext的构造函数</h2>
+<p>从第一句开始吧</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nc">AnnotationConfigApplicationContext</span> <span class="n">context</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">AnnotationConfigApplicationContext</span><span class="o">(</span><span class="nc">TestBean</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+
+<span class="c1">// 点进AnnotationConfigApplicationContext</span>
+<span class="kd">public</span> <span class="nf">AnnotationConfigApplicationContext</span><span class="o">(</span><span class="nc">Class</span><span class="o">&lt;?&gt;...</span> <span class="n">annotatedClasses</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">();</span>
+    <span class="n">register</span><span class="o">(</span><span class="n">annotatedClasses</span><span class="o">);</span>
+    <span class="n">refresh</span><span class="o">();</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<h3 id="this">this()</h3>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 点进去this(),是进行初始化</span>
+<span class="kd">public</span> <span class="nf">AnnotationConfigApplicationContext</span><span class="o">()</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">reader</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">AnnotatedBeanDefinitionReader</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">scanner</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ClassPathBeanDefinitionScanner</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>AnnotatedBeanDefinitionReader，ClassPathBeanDefinitionScanner它俩的主要功能是注册BeanDefinition，这里先详细描述AnnotatedBeanDefinitionReader。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="nf">AnnotatedBeanDefinitionReader</span><span class="o">(</span><span class="nc">BeanDefinitionRegistry</span> <span class="n">registry</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">getOrCreateEnvironment</span><span class="o">(</span><span class="n">registry</span><span class="o">));</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="nf">AnnotatedBeanDefinitionReader</span><span class="o">(</span><span class="nc">BeanDefinitionRegistry</span> <span class="n">registry</span><span class="o">,</span> <span class="nc">Environment</span> <span class="n">environment</span><span class="o">)</span> <span class="o">{</span>
+    <span class="nc">Assert</span><span class="o">.</span><span class="na">notNull</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="s">"BeanDefinitionRegistry must not be null"</span><span class="o">);</span>
+    <span class="nc">Assert</span><span class="o">.</span><span class="na">notNull</span><span class="o">(</span><span class="n">environment</span><span class="o">,</span> <span class="s">"Environment must not be null"</span><span class="o">);</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">registry</span> <span class="o">=</span> <span class="n">registry</span><span class="o">;</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">conditionEvaluator</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">ConditionEvaluator</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">environment</span><span class="o">,</span> <span class="kc">null</span><span class="o">);</span>
+    <span class="c1">// 主要就是这个方法</span>
+    <span class="nc">AnnotationConfigUtils</span><span class="o">.</span><span class="na">registerAnnotationConfigProcessors</span><span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">registry</span><span class="o">);</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">registerAnnotationConfigProcessors</span><span class="o">(</span><span class="nc">BeanDefinitionRegistry</span> <span class="n">registry</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">registerAnnotationConfigProcessors</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="kc">null</span><span class="o">);</span>
+<span class="o">}</span>
+
+<span class="kd">public</span> <span class="kd">static</span> <span class="nc">Set</span><span class="o">&lt;</span><span class="nc">BeanDefinitionHolder</span><span class="o">&gt;</span> <span class="nf">registerAnnotationConfigProcessors</span><span class="o">(</span>
+			<span class="nc">BeanDefinitionRegistry</span> <span class="n">registry</span><span class="o">,</span> <span class="nd">@Nullable</span> <span class="nc">Object</span> <span class="n">source</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// 获取beanFactory</span>
+    <span class="nc">DefaultListableBeanFactory</span> <span class="n">beanFactory</span> <span class="o">=</span> <span class="n">unwrapDefaultListableBeanFactory</span><span class="o">(</span><span class="n">registry</span><span class="o">);</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">beanFactory</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(!(</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">getDependencyComparator</span><span class="o">()</span> <span class="k">instanceof</span> <span class="nc">AnnotationAwareOrderComparator</span><span class="o">))</span> <span class="o">{</span>
+            <span class="n">beanFactory</span><span class="o">.</span><span class="na">setDependencyComparator</span><span class="o">(</span><span class="nc">AnnotationAwareOrderComparator</span><span class="o">.</span><span class="na">INSTANCE</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="k">if</span> <span class="o">(!(</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">getAutowireCandidateResolver</span><span class="o">()</span> <span class="k">instanceof</span> <span class="nc">ContextAnnotationAutowireCandidateResolver</span><span class="o">))</span> <span class="o">{</span>
+            <span class="n">beanFactory</span><span class="o">.</span><span class="na">setAutowireCandidateResolver</span><span class="o">(</span><span class="k">new</span> <span class="nc">ContextAnnotationAutowireCandidateResolver</span><span class="o">());</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="nc">Set</span><span class="o">&lt;</span><span class="nc">BeanDefinitionHolder</span><span class="o">&gt;</span> <span class="n">beanDefs</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">LinkedHashSet</span><span class="o">&lt;&gt;(</span><span class="mi">8</span><span class="o">);</span>
+
+    <span class="c1">// 注册常用的处理器</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">(</span><span class="nc">ConfigurationClassPostProcessor</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="k">if</span> <span class="o">(!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">(</span><span class="nc">AutowiredAnnotationBeanPostProcessor</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">AUTOWIRED_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Check for JSR-250 support, and if present add the CommonAnnotationBeanPostProcessor.</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">jsr250Present</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">COMMON_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">(</span><span class="nc">CommonAnnotationBeanPostProcessor</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">COMMON_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Check for JPA support, and if present add the PersistenceAnnotationBeanPostProcessor.</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">jpaPresent</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">();</span>
+        <span class="k">try</span> <span class="o">{</span>
+            <span class="n">def</span><span class="o">.</span><span class="na">setBeanClass</span><span class="o">(</span><span class="nc">ClassUtils</span><span class="o">.</span><span class="na">forName</span><span class="o">(</span><span class="no">PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME</span><span class="o">,</span>
+                    <span class="nc">AnnotationConfigUtils</span><span class="o">.</span><span class="na">class</span><span class="o">.</span><span class="na">getClassLoader</span><span class="o">()));</span>
+        <span class="o">}</span>
+        <span class="k">catch</span> <span class="o">(</span><span class="nc">ClassNotFoundException</span> <span class="n">ex</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">IllegalStateException</span><span class="o">(</span>
+                    <span class="s">"Cannot load optional framework class: "</span> <span class="o">+</span> <span class="no">PERSISTENCE_ANNOTATION_PROCESSOR_CLASS_NAME</span><span class="o">,</span> <span class="n">ex</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">PERSISTENCE_ANNOTATION_PROCESSOR_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="k">if</span> <span class="o">(!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">EVENT_LISTENER_PROCESSOR_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">(</span><span class="nc">EventListenerMethodProcessor</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">EVENT_LISTENER_PROCESSOR_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="k">if</span> <span class="o">(!</span><span class="n">registry</span><span class="o">.</span><span class="na">containsBeanDefinition</span><span class="o">(</span><span class="no">EVENT_LISTENER_FACTORY_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="nc">RootBeanDefinition</span> <span class="n">def</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">RootBeanDefinition</span><span class="o">(</span><span class="nc">DefaultEventListenerFactory</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+        <span class="n">def</span><span class="o">.</span><span class="na">setSource</span><span class="o">(</span><span class="n">source</span><span class="o">);</span>
+        <span class="n">beanDefs</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="n">registerPostProcessor</span><span class="o">(</span><span class="n">registry</span><span class="o">,</span> <span class="n">def</span><span class="o">,</span> <span class="no">EVENT_LISTENER_FACTORY_BEAN_NAME</span><span class="o">));</span>
+    <span class="o">}</span>
+
+    <span class="k">return</span> <span class="n">beanDefs</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>注册常用的处理器:</p>
+
+<p>ConfigurationClassPostProcessor:处理@Configuration,@Component,@ComponentScan,@Import,@ImportSource。(ConfigurationClassPostProcessor#postProcessBeanDefinitionRegistry,ConfigurationClassPostProcessor#processConfigBeanDefinitions)</p>
+
+<p>AutowiredAnnotationBeanPostProcessor:处理@Autowired</p>
+
+<p>CommonAnnotationBeanPostProcessor:处理@Resource</p>
+
+<p>若支持JPA，注册PersistenceAnnotationBeanPostProcessor</p>
+
+<p>EventListenerMethodProcessor:处理@EventListener</p>
+
+<p>所以，此时的beanFactory已经有了一些属性，如下图：
+<img src="/img/spring-code/spring-code1.png" alt="beanFactory" title="beanFactory" /></p>
+
+<h4 id="registerannotatedclasses">register(annotatedClasses)</h4>
+<p>OK，了解了构造函数，那么返回去继续看下一句：register(annotatedClasses);
+这个方法真正的执行方法是AnnotatedBeanDefinitionReader#doRegisterBean，那就来看这个方法！</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="no">T</span><span class="o">&gt;</span> <span class="kt">void</span> <span class="nf">doRegisterBean</span><span class="o">(</span><span class="nc">Class</span><span class="o">&lt;</span><span class="no">T</span><span class="o">&gt;</span> <span class="n">annotatedClass</span><span class="o">,</span> <span class="nd">@Nullable</span> <span class="nc">Supplier</span><span class="o">&lt;</span><span class="no">T</span><span class="o">&gt;</span> <span class="n">instanceSupplier</span><span class="o">,</span> <span class="nd">@Nullable</span> <span class="nc">String</span> <span class="n">name</span><span class="o">,</span>
+			<span class="nd">@Nullable</span> <span class="nc">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="nc">Annotation</span><span class="o">&gt;[]</span> <span class="n">qualifiers</span><span class="o">,</span> <span class="nc">BeanDefinitionCustomizer</span><span class="o">...</span> <span class="n">definitionCustomizers</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// 这句话代表着通过AnnotatedBeanDefinitionReader注册的都是AnnotatedGenericBeanDefinition</span>
+    <span class="nc">AnnotatedGenericBeanDefinition</span> <span class="n">abd</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">AnnotatedGenericBeanDefinition</span><span class="o">(</span><span class="n">annotatedClass</span><span class="o">);</span>
+    <span class="c1">// (1)判断是否需要注册 根据@Conditional注解</span>
+    <span class="k">if</span> <span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">conditionEvaluator</span><span class="o">.</span><span class="na">shouldSkip</span><span class="o">(</span><span class="n">abd</span><span class="o">.</span><span class="na">getMetadata</span><span class="o">()))</span> <span class="o">{</span>
+        <span class="k">return</span><span class="o">;</span>
+    <span class="o">}</span>
+
+    <span class="n">abd</span><span class="o">.</span><span class="na">setInstanceSupplier</span><span class="o">(</span><span class="n">instanceSupplier</span><span class="o">);</span>
+    <span class="c1">// 设置scope</span>
+    <span class="nc">ScopeMetadata</span> <span class="n">scopeMetadata</span> <span class="o">=</span> <span class="k">this</span><span class="o">.</span><span class="na">scopeMetadataResolver</span><span class="o">.</span><span class="na">resolveScopeMetadata</span><span class="o">(</span><span class="n">abd</span><span class="o">);</span>
+    <span class="n">abd</span><span class="o">.</span><span class="na">setScope</span><span class="o">(</span><span class="n">scopeMetadata</span><span class="o">.</span><span class="na">getScopeName</span><span class="o">());</span>
+    <span class="c1">// (2)生成beanName</span>
+    <span class="nc">String</span> <span class="n">beanName</span> <span class="o">=</span> <span class="o">(</span><span class="n">name</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">?</span> <span class="n">name</span> <span class="o">:</span> <span class="k">this</span><span class="o">.</span><span class="na">beanNameGenerator</span><span class="o">.</span><span class="na">generateBeanName</span><span class="o">(</span><span class="n">abd</span><span class="o">,</span> <span class="k">this</span><span class="o">.</span><span class="na">registry</span><span class="o">));</span>
+    <span class="c1">// 设置一些注解属性</span>
+    <span class="nc">AnnotationConfigUtils</span><span class="o">.</span><span class="na">processCommonDefinitionAnnotations</span><span class="o">(</span><span class="n">abd</span><span class="o">);</span>
+    <span class="c1">// 正常程序调用qualifiers均为null，除非第三方拓展，手动传入了qualifiers参数。</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">qualifiers</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">for</span> <span class="o">(</span><span class="nc">Class</span><span class="o">&lt;?</span> <span class="kd">extends</span> <span class="nc">Annotation</span><span class="o">&gt;</span> <span class="n">qualifier</span> <span class="o">:</span> <span class="n">qualifiers</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(</span><span class="nc">Primary</span><span class="o">.</span><span class="na">class</span> <span class="o">==</span> <span class="n">qualifier</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">abd</span><span class="o">.</span><span class="na">setPrimary</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+            <span class="o">}</span>
+            <span class="k">else</span> <span class="nf">if</span> <span class="o">(</span><span class="nc">Lazy</span><span class="o">.</span><span class="na">class</span> <span class="o">==</span> <span class="n">qualifier</span><span class="o">)</span> <span class="o">{</span>
+                <span class="n">abd</span><span class="o">.</span><span class="na">setLazyInit</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+            <span class="o">}</span>
+            <span class="k">else</span> <span class="o">{</span>
+                <span class="n">abd</span><span class="o">.</span><span class="na">addQualifier</span><span class="o">(</span><span class="k">new</span> <span class="nc">AutowireCandidateQualifier</span><span class="o">(</span><span class="n">qualifier</span><span class="o">));</span>
+            <span class="o">}</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+    <span class="c1">// bean的回调函数（此处还没有仔细研究，后期研究后更新）</span>
+    <span class="k">for</span> <span class="o">(</span><span class="nc">BeanDefinitionCustomizer</span> <span class="n">customizer</span> <span class="o">:</span> <span class="n">definitionCustomizers</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">customizer</span><span class="o">.</span><span class="na">customize</span><span class="o">(</span><span class="n">abd</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="nc">BeanDefinitionHolder</span> <span class="n">definitionHolder</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">BeanDefinitionHolder</span><span class="o">(</span><span class="n">abd</span><span class="o">,</span> <span class="n">beanName</span><span class="o">);</span>
+    <span class="c1">//（3）解析proxyMode属性</span>
+    <span class="n">definitionHolder</span> <span class="o">=</span> <span class="nc">AnnotationConfigUtils</span><span class="o">.</span><span class="na">applyScopedProxyMode</span><span class="o">(</span><span class="n">scopeMetadata</span><span class="o">,</span> <span class="n">definitionHolder</span><span class="o">,</span> <span class="k">this</span><span class="o">.</span><span class="na">registry</span><span class="o">);</span>
+    <span class="c1">// 注册beanDefinition,即放入一个Map&lt;String, BeanDefinition&gt; beanDefinitionMap中</span>
+    <span class="nc">BeanDefinitionReaderUtils</span><span class="o">.</span><span class="na">registerBeanDefinition</span><span class="o">(</span><span class="n">definitionHolder</span><span class="o">,</span> <span class="k">this</span><span class="o">.</span><span class="na">registry</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>（1）this.conditionEvaluator.shouldSkip(abd.getMetadata())
+conditionEvaluator 是解析@Conditional注解的，若有@Conditional注解而且注解属性值为true，那么就skip</p>
+
+<p>（2）生成beanName：这里beanName的作用就是作为beanDefinitionMap的key</p>
+
+<p>（3）解析proxyMode属性：如果proxyMode =ScopedProxyMode.INTERFACES/TARGET_CLASS的话，那么要进行处理。简单来说，对象A为单例，它有属性B，B的scope为session/request，那么在Spring应用上下文加载创建A的时候，此时B还没有创建，那么会生成一个B的代理对象进行注入。proxyMode指明了是采用jdk还是cglib生成代理对象</p>
+
+<h3 id="refresh">refresh()</h3>
+<p>紧接着，refresh()方法</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// 先记录这三个方法啦，后续的下篇博客见～</span>
+<span class="c1">// Prepare this context for refreshing.</span>
+<span class="n">prepareRefresh</span><span class="o">();</span>
+
+<span class="c1">// Tell the subclass to refresh the internal bean factory.</span>
+<span class="nc">ConfigurableListableBeanFactory</span> <span class="n">beanFactory</span> <span class="o">=</span> <span class="n">obtainFreshBeanFactory</span><span class="o">();</span>
+
+<span class="c1">// Prepare the bean factory for use in this context.</span>
+<span class="n">prepareBeanFactory</span><span class="o">(</span><span class="n">beanFactory</span><span class="o">);</span>
+
+</code></pre></div></div>
+<h4 id="preparerefresh">prepareRefresh()</h4>
+<p>首先prepareRefresh()方法</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protected</span> <span class="kt">void</span> <span class="nf">prepareRefresh</span><span class="o">()</span> <span class="o">{</span>
+    <span class="c1">// Switch to active.</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">startupDate</span> <span class="o">=</span> <span class="nc">System</span><span class="o">.</span><span class="na">currentTimeMillis</span><span class="o">();</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">closed</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="kc">false</span><span class="o">);</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">active</span><span class="o">.</span><span class="na">set</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+
+    <span class="k">if</span> <span class="o">(</span><span class="n">logger</span><span class="o">.</span><span class="na">isDebugEnabled</span><span class="o">())</span> <span class="o">{</span>
+        <span class="k">if</span> <span class="o">(</span><span class="n">logger</span><span class="o">.</span><span class="na">isTraceEnabled</span><span class="o">())</span> <span class="o">{</span>
+            <span class="n">logger</span><span class="o">.</span><span class="na">trace</span><span class="o">(</span><span class="s">"Refreshing "</span> <span class="o">+</span> <span class="k">this</span><span class="o">);</span>
+        <span class="o">}</span>
+        <span class="k">else</span> <span class="o">{</span>
+            <span class="n">logger</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span><span class="s">"Refreshing "</span> <span class="o">+</span> <span class="n">getDisplayName</span><span class="o">());</span>
+        <span class="o">}</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Initialize any placeholder property sources in the context environment.</span>
+    <span class="c1">// 这个方法是初始化对象属性，但在这里没有做任何操作，如果有需要的话，可以靠子类扩展</span>
+    <span class="n">initPropertySources</span><span class="o">();</span>
+
+    <span class="c1">// Validate that all properties marked as required are resolvable:</span>
+    <span class="c1">// see ConfigurablePropertyResolver#setRequiredProperties</span>
+    <span class="c1">// 验证一些必须的属性值，若为null，则抛出异常</span>
+    <span class="n">getEnvironment</span><span class="o">().</span><span class="na">validateRequiredProperties</span><span class="o">();</span>
+
+    <span class="c1">// Store pre-refresh ApplicationListeners...</span>
+    <span class="k">if</span> <span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">earlyApplicationListeners</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">earlyApplicationListeners</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">LinkedHashSet</span><span class="o">&lt;&gt;(</span><span class="k">this</span><span class="o">.</span><span class="na">applicationListeners</span><span class="o">);</span>
+    <span class="o">}</span>
+    <span class="k">else</span> <span class="o">{</span>
+        <span class="c1">// Reset local application listeners to pre-refresh state.</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">applicationListeners</span><span class="o">.</span><span class="na">clear</span><span class="o">();</span>
+        <span class="k">this</span><span class="o">.</span><span class="na">applicationListeners</span><span class="o">.</span><span class="na">addAll</span><span class="o">(</span><span class="k">this</span><span class="o">.</span><span class="na">earlyApplicationListeners</span><span class="o">);</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Allow for the collection of early ApplicationEvents,</span>
+    <span class="c1">// to be published once the multicaster is available...</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">earlyApplicationEvents</span> <span class="o">=</span> <span class="k">new</span> <span class="nc">LinkedHashSet</span><span class="o">&lt;&gt;();</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="obtainfreshbeanfactory">obtainFreshBeanFactory()</h4>
+<p>然后ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory()这个方法获取beanFactory</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protected</span> <span class="nc">ConfigurableListableBeanFactory</span> <span class="nf">obtainFreshBeanFactory</span><span class="o">()</span> <span class="o">{</span>
+    <span class="n">refreshBeanFactory</span><span class="o">();</span>
+    <span class="k">return</span> <span class="nf">getBeanFactory</span><span class="o">();</span>
+<span class="o">}</span>
+
+<span class="cm">/**
+    * Return the single internal BeanFactory held by this context
+    * (as ConfigurableListableBeanFactory).
+    */</span>
+<span class="nd">@Override</span>
+<span class="kd">public</span> <span class="kd">final</span> <span class="nc">ConfigurableListableBeanFactory</span> <span class="nf">getBeanFactory</span><span class="o">()</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="k">this</span><span class="o">.</span><span class="na">beanFactory</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<h4 id="preparebeanfactorybeanfactory">prepareBeanFactory(beanFactory)</h4>
+<p>最后prepareBeanFactory(beanFactory);这个方法设置beanFactory的一些属性，为后期的工作做准备。</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protected</span> <span class="kt">void</span> <span class="nf">prepareBeanFactory</span><span class="o">(</span><span class="nc">ConfigurableListableBeanFactory</span> <span class="n">beanFactory</span><span class="o">)</span> <span class="o">{</span>
+    <span class="c1">// Tell the internal bean factory to use the context's class loader etc.</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">setBeanClassLoader</span><span class="o">(</span><span class="n">getClassLoader</span><span class="o">());</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">setBeanExpressionResolver</span><span class="o">(</span><span class="k">new</span> <span class="nc">StandardBeanExpressionResolver</span><span class="o">(</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">getBeanClassLoader</span><span class="o">()));</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">addPropertyEditorRegistrar</span><span class="o">(</span><span class="k">new</span> <span class="nc">ResourceEditorRegistrar</span><span class="o">(</span><span class="k">this</span><span class="o">,</span> <span class="n">getEnvironment</span><span class="o">()));</span>
+
+    <span class="c1">// Configure the bean factory with context callbacks.</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">addBeanPostProcessor</span><span class="o">(</span><span class="k">new</span> <span class="nc">ApplicationContextAwareProcessor</span><span class="o">(</span><span class="k">this</span><span class="o">));</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">EnvironmentAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">EmbeddedValueResolverAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">ResourceLoaderAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">ApplicationEventPublisherAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">MessageSourceAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">ApplicationContextAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+
+    <span class="c1">// BeanFactory interface not registered as resolvable type in a plain factory.</span>
+    <span class="c1">// MessageSource registered (and found for autowiring) as a bean.</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerResolvableDependency</span><span class="o">(</span><span class="nc">BeanFactory</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="n">beanFactory</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerResolvableDependency</span><span class="o">(</span><span class="nc">ResourceLoader</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">this</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerResolvableDependency</span><span class="o">(</span><span class="nc">ApplicationEventPublisher</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">this</span><span class="o">);</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerResolvableDependency</span><span class="o">(</span><span class="nc">ApplicationContext</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">this</span><span class="o">);</span>
+
+    <span class="c1">// Register early post-processor for detecting inner beans as ApplicationListeners.</span>
+    <span class="n">beanFactory</span><span class="o">.</span><span class="na">addBeanPostProcessor</span><span class="o">(</span><span class="k">new</span> <span class="nc">ApplicationListenerDetector</span><span class="o">(</span><span class="k">this</span><span class="o">));</span>
+
+    <span class="c1">// Detect a LoadTimeWeaver and prepare for weaving, if found.</span>
+    <span class="k">if</span> <span class="o">(</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">containsBean</span><span class="o">(</span><span class="no">LOAD_TIME_WEAVER_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="n">beanFactory</span><span class="o">.</span><span class="na">addBeanPostProcessor</span><span class="o">(</span><span class="k">new</span> <span class="nc">LoadTimeWeaverAwareProcessor</span><span class="o">(</span><span class="n">beanFactory</span><span class="o">));</span>
+        <span class="c1">// Set a temporary ClassLoader for type matching.</span>
+        <span class="n">beanFactory</span><span class="o">.</span><span class="na">setTempClassLoader</span><span class="o">(</span><span class="k">new</span> <span class="nc">ContextTypeMatchClassLoader</span><span class="o">(</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">getBeanClassLoader</span><span class="o">()));</span>
+    <span class="o">}</span>
+
+    <span class="c1">// Register default environment beans.</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">containsLocalBean</span><span class="o">(</span><span class="no">ENVIRONMENT_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerSingleton</span><span class="o">(</span><span class="no">ENVIRONMENT_BEAN_NAME</span><span class="o">,</span> <span class="n">getEnvironment</span><span class="o">());</span>
+    <span class="o">}</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">containsLocalBean</span><span class="o">(</span><span class="no">SYSTEM_PROPERTIES_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerSingleton</span><span class="o">(</span><span class="no">SYSTEM_PROPERTIES_BEAN_NAME</span><span class="o">,</span> <span class="n">getEnvironment</span><span class="o">().</span><span class="na">getSystemProperties</span><span class="o">());</span>
+    <span class="o">}</span>
+    <span class="k">if</span> <span class="o">(!</span><span class="n">beanFactory</span><span class="o">.</span><span class="na">containsLocalBean</span><span class="o">(</span><span class="no">SYSTEM_ENVIRONMENT_BEAN_NAME</span><span class="o">))</span> <span class="o">{</span>
+        <span class="n">beanFactory</span><span class="o">.</span><span class="na">registerSingleton</span><span class="o">(</span><span class="no">SYSTEM_ENVIRONMENT_BEAN_NAME</span><span class="o">,</span> <span class="n">getEnvironment</span><span class="o">().</span><span class="na">getSystemEnvironment</span><span class="o">());</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+<p>对于prepareBeanFactory方法，打算对其中的ignoreDependencyInterface，registerResolvableDependency这两个方法做一些解释。</p>
+
+<p>ignoreDependencyInterface这个方法，看起来是忽略指定接口，但其实不是。忽略指定的类和接口是ignoreDependencyType。而ignoreDependencyInterface方法是在自动装配时忽略该接口实现类中和setter方法入参相同的类型，也就是忽略该接口实现类中存在依赖外部的bean属性注入。</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">beanFactory</span><span class="o">.</span><span class="na">ignoreDependencyInterface</span><span class="o">(</span><span class="nc">EnvironmentAware</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+
+<span class="kd">public</span> <span class="kd">interface</span> <span class="nc">EnvironmentAware</span> <span class="kd">extends</span> <span class="nc">Aware</span> <span class="o">{</span>
+	<span class="kt">void</span> <span class="nf">setEnvironment</span><span class="o">(</span><span class="nc">Environment</span> <span class="n">environment</span><span class="o">);</span>
+<span class="o">}</span>
+
+</code></pre></div></div>
+<p>beanFactory.ignoreDependencyInterface(EnvironmentAware.class);所以拿这句代码来说，它的意思就是忽略EnvironmentAware实现类中的setEnvironment方法注入。</p>
+
+<p>registerResolvableDependency方法是在当接口的多个实现类都已经注入到容器中，spring不知道用哪个时，就可以通过BeanFactoryPostProcessor实现类中的postProcessBeanFactory方法指定要注入的实现类.
+beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);这句代码的意思就是说虽然BeanFactory接口的实现类有很多，但在这里注入的是beanFactory。</p>
+
+<hr />
+
+<h2 id="参考资料">参考资料</h2>
+<p><small>源码分析总算是开始了，在阅读源码的过程中，网上看了很多博主的优秀文章，真的很棒！优秀的人好多呀～现在的自己还是在别人博客的基础上进行学习，希望以后自己也可以有一套很完美属于自己的见解，一定要加油！</small></p>
+<ul>
+  <li><small><a href="https://blog.csdn.net/yuge1123/article/details/106053857">registerResolvableDependency方法</a></small></li>
+  <li><small><a href="https://www.jianshu.com/p/3c7e0608ff1f?from=singlemessage">ignoreDependencyInterface方法</a></small></li>
+  <li><small><a href="https://blog.csdn.net/bazhuayu_1203/article/details/78658196">EnvironmentAware接口</a></small></li>
+  <li><small><a href="https://daimingzhi.blog.csdn.net/article/details/105667900">极其优秀！</a></small></li>
+</ul>
+
+:ET
