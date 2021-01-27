@@ -45,7 +45,7 @@ public AnnotationConfigApplicationContext() {
     this.scanner = new ClassPathBeanDefinitionScanner(this);
 }
 ```
-AnnotatedBeanDefinitionReader，ClassPathBeanDefinitionScanner它俩的主要功能是注册BeanDefinition，这里先详细描述AnnotatedBeanDefinitionReader。
+AnnotatedBeanDefinitionReader，ClassPathBeanDefinitionScanner它俩的主要功能是注册BeanDefinition。（AnnotatedBeanDefinitionReader支持注册单个BeanDefinition，ClassPathBeanDefinitionScanner是通过注解(@PropertySources,@ComponentScan,@ComponentScans,@Import,@ImportResource等)支持批量注册多个）。这里先详细描述AnnotatedBeanDefinitionReader。
 
 ```java
 public AnnotatedBeanDefinitionReader(BeanDefinitionRegistry registry) {
